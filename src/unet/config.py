@@ -34,6 +34,6 @@ THRESHOLD = 0.5
 BASE_OUTPUT = "output"
 # define the path to the output serialized model, model training
 # plot, and testing image paths
-MODEL_PATH = os.path.join(BASE_OUTPUT, "igvc_obstacle_unet.pth")
-PLOT_PATH = os.path.sep.join([BASE_OUTPUT, "plot.png"])
-TEST_PATHS = os.path.sep.join([BASE_OUTPUT, "test_paths.txt"])
+MODEL_PATH = os.path.join(BASE_OUTPUT, "model")
+TENSORBOARD_PATH = os.path.join(BASE_OUTPUT, "logs")
+TEST_PATHS = os.path.join(BASE_OUTPUT, "test_paths.txt")
