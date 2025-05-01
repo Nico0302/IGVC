@@ -26,3 +26,6 @@ dataset-upload:
 
 dataset-meta:
 	uv run ./scripts/dataset-meta.py
+
+requirements:
+	uv pip compile pyproject.toml -o requirements.txt
