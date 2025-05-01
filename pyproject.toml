@@ -1,0 +1,17 @@
+[project]
+name = "model"
+version = "0.1.0"
+description = "ML Model for IGVC Obstacle Image Segmentation"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "datasets[vision]>=3.5.1",
+    "huggingface-hub>=0.30.2",
+    "imutils>=0.5.4",
+    "matplotlib>=3.10.1",
+    "opencv-contrib-python>=4.11.0.86",
+    "scikit-learn>=1.6.1",
+    "torch>=2.7.0",
+    "torchvision>=0.22.0",
+    "tqdm>=4.67.1",
+]
