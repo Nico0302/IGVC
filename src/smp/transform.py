@@ -1,11 +1,11 @@
 import albumentations as A
 
 # training set images augmentation
-def get_train_transform(width: int, height: int):
+def get_train_transform(height: int, width: int):
     train_transform = [
         A.HorizontalFlip(p=0.5),
         A.PadIfNeeded(min_height=width, min_width=height),
-        A.RandomResizedCrop(size=(width, width), scale=(0.8, 1.0), p=1),
+        A.RandomResizedCrop(size=(height, width), scale=(0.8, 1.0), p=1),
         A.OneOf(
             [
                 A.CLAHE(p=1),
@@ -33,10 +33,9 @@ def get_train_transform(width: int, height: int):
     return A.Compose(train_transform)
 
 
-def get_valid_transform(width: int, height: int):
+def get_valid_transform(height: int, width: int):
     """Add paddings to make image shape divisible by 32"""
     test_transform = [
-        A.PadIfNeeded(min_height=height, min_width=width),
-        A.CenterCrop(height=height, width=width),
+        A.Crop(x_min=0, y_min=0, x_max=width, y_max=height),
     ]
     return A.Compose(test_transform)
