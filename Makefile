@@ -25,4 +25,5 @@ dataset-upload:
 	uv run ./scripts/dataset-upload.py
 
 dataset-meta:
-	uv run ./scripts/dataset-meta.py
+	uv run ./scripts/dataset-meta.py train
+	uv run ./scripts/dataset-meta.py test

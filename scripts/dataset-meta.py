@@ -1,13 +1,9 @@
 import os
 import csv
 import re
+import sys
 
 # --- Configuration ---
-base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dataset"))
-image_dir = os.path.join(base_dir, "composite")
-obstacle_mask_dir = os.path.join(base_dir, "obstacle")
-lane_mask_dir = os.path.join(base_dir, "lane")
-output_csv = os.path.join(base_dir, "metadata.csv")
 image_extensions = (".png", ".jpg", ".jpeg")  # Add other extensions if needed
 # --- End Configuration ---
 
@@ -49,7 +45,15 @@ def find_and_validate_mask(
         return None
 
 
-def generate_meta():
+def generate_meta(split: str):
+    base_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "dataset", split)
+    )
+    image_dir = os.path.join(base_dir, "composite")
+    obstacle_mask_dir = os.path.join(base_dir, "obstacle")
+    lane_mask_dir = os.path.join(base_dir, "lane")
+    output_csv = os.path.join(base_dir, "metadata.csv")
+
     metadata = []
 
     print(f"Scanning image directory: {image_dir}")
@@ -130,4 +134,10 @@ def generate_meta():
 
 
 if __name__ == "__main__":
-    generate_meta()
+    # get split as command line argument
+    if len(sys.argv) != 2:
+        print("Usage: python dataset-meta.py <split>")
+        print("Example: python dataset-meta.py train")
+        exit(1)
+    split = sys.argv[1]
+    generate_meta(split)
