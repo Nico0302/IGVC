@@ -21,7 +21,7 @@ if ! command -v ffmpeg &> /dev/null; then
   exit 1
 fi
 
-ffmpeg -y -framerate 1 -pattern_type glob -i "$INPUT_FILES" -c:v libx264 -pix_fmt yuv420p "$OUTPUT_FILE"
+ffmpeg -y -framerate 1 -pattern_type glob -i "$INPUT_FILES" -c:v libx264 -frames:v 240 -pix_fmt yuv420p "$OUTPUT_FILE"
 
 echo "Video created: $OUTPUT_FILE"
 

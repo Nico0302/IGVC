@@ -1,0 +1,3 @@
+[submodule "dataset"]
+	path = dataset
+	url = git@hf.co:datasets/Nico0302/IGVC-Segmentation

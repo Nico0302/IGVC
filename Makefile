@@ -4,7 +4,7 @@ ifneq (,$(wildcard ./.env))
 endif
 
 video-composite:
-	./scripts/video.sh "./dataset/composite/1-*.png" ./video/composite.mp4
+	./scripts/video.sh "./dataset/composite/1-1*.png" ./video/composite.mp4
 
 video-seg:
 	./scripts/video.sh "./dataset/seg/*.png" ./video/seg.mp4
@@ -27,3 +27,7 @@ dataset-upload:
 dataset-meta:
 	uv run ./scripts/dataset-meta.py train
 	uv run ./scripts/dataset-meta.py test
+	uv run ./scripts/dataset-meta.py
+
+requirements:
+	uv pip compile pyproject.toml -o requirements.txt
