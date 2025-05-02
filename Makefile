@@ -4,7 +4,7 @@ ifneq (,$(wildcard ./.env))
 endif
 
 video-composite:
-	./scripts/video.sh "./dataset/composite/1-*.png" ./video/composite.mp4
+	./scripts/video.sh "./dataset/composite/1-1*.png" ./video/composite.mp4
 
 video-seg:
 	./scripts/video.sh "./dataset/seg/*.png" ./video/seg.mp4
