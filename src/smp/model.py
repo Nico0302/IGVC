@@ -153,3 +153,7 @@ class SegmentationModel(pl.LightningModule):
             },
         }
         return
+    
+    def load_pretrained(self, path: str):
+        """Load model weights from a checkpoint file."""
+        self.model = smp.from_pretrained(path)
