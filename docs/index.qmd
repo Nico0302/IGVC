@@ -1,0 +1,7 @@
+---
+title: Segmentation Model for IGVC
+subtitle: Obstacle Segmentation
+format:
+  html:
+    toc: false
+---

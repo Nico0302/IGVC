@@ -1,0 +1,52 @@
+project:
+  type: default
+  title: "IGVC Segmentation Model"
+  render:
+    - slides.qmd
+
+# theme:
+#   light: default
+#   # dark: darkly
+
+# website:
+#   bread-crumbs: false
+#   sidebar:
+#     style: "docked"
+#     border: false
+#     search: false
+#     page-navigation: true
+#     collapse-level: 3
+#     contents:
+#       - section: "Exercises"
+#         href: exercise1/exercise1.qmd
+#         contents:
+#           - text: "Exercise#1"
+#             href: exercise1/exercise1.qmd
+
+authors:
+  - Nicolas Gres
+
+format:
+  pdf:
+    # documentclass: report
+    # mainfont: Inter
+    monofont: JetBrains Mono
+    linestretch: 1.5
+    cls: diabetologia.cls
+    cite-method: biblatex
+    geometry:
+      - left=30mm
+      - right=30mm
+
+  revealjs:
+    logo: assets/logo.svg
+    footer: "CSCI-581 — Nicolas Gres 2025"
+
+crossref:
+  custom:
+    - kind: float
+      reference-prefix: Equation
+      key: eqn
+      latex-env: eqn
+
+bibliography: references.bib

@@ -1,0 +1,12 @@
+.DS_Store
+/ros
+/.quarto/
+/.env/
+/_site/
+*.html
+*.log
+*.tex
+*_files
+*.pdf
+*.aux
+*.out.ipynb

@@ -1,0 +1,190 @@
+---
+title: "**IGVC** Obstacle Segmentation"
+subtitle: "*Training a model without data*"
+format: revealjs
+reference-location: document
+reference-links: true
+theme: [default, "assets/chico.scss"]
+---
+
+## The Challenge {background-image="assets/igvc_parkour.jpg"}
+
+Navigate a 500 feet obstacle \
+course fully **autonomously**
+
+::: footer
+[@IGVCOfficialCompetition2024]
+:::
+
+## The Setup
+
+1. Front facing camera captures **images**
+2. ML model for obstacle **segmentation**
+3. Apply linear transform to get an **occupancy map**
+
+::: {layout-ncol=3}
+
+![Image [@zemlinIGVCDesignReport2024]](assets/view_image.jpg)
+
+![Mask](assets/view_mask.jpg)
+
+![Transform](assets/view_transform.jpg)
+
+:::
+
+## Segmentation
+
+:::: {.columns}
+
+::: {.column width="70%"}
+- **Object Detection**
+  - Classify each object by \
+  bounding boxes
+  - e.g. YOLO^[can also be used for segmentation on combination with detection], Faster R-CNN
+
+- **Semantic Segmentation**
+  - Classify each pixel
+  - e.g. U-Net, DeepLab
+:::
+
+::: {.column width="30%"}
+![](assets/view_detection.jpg)
+
+![](assets/view_mask.jpg)
+:::
+
+::::
+
+## Data Collection
+
+![Custom Blender Simulation Environment](assets/blender_window.png)
+
+
+## 🤗 Hugging Face
+
+```python
+from huggingface_hub import HfApi
+
+HfApi().upload_folder(
+    folder_path="dataset",
+    repo_id="Nico0302/IGVC-Segmentation",
+    repo_type="dataset",
+)
+```
+
+- Manages datasets and model files
+    - upload via `HfApi` or `git-lfs`
+
+- [Dataset Viewer](https://huggingface.co/datasets/Nico0302/IGVC-Segmentation/viewer?views%5B%5D=train) to quickly browse through the dataset
+
+- `datasets` library to load datasets with utility functions
+
+## Datasets {auto-animate=true}
+
+```python
+    dataset = load_dataset(self.path, split=self.split)
+    if (self.split == "test"):
+      return dataset
+
+    splits = dataset.train_test_split(test_size=self.valid_size)
+    if self.split == "valid":
+      return splits["test"]
+
+    return splits["train"]
+```
+
+## Datasets {auto-animate=true}
+
+```python
+from torch.utils.data import Dataset
+
+class SegmentationDataset(Dataset):
+
+  def __getitem__(self, idx):
+    item = self.data[idx]
+
+    sample = dict(image=np.array(item["image"]), mask=np.array(item[self.mask_name]))
+    if self.transform is not None:
+      sample = self.transform(**sample)
+
+    return {
+      "image": np.transpose(sample["image"], (2, 0, 1)), # HWC to CHW (3, H, W)
+      "mask": np.expand_dims(sample["mask"].astype(np.float32) / 255.0, 0), # HW to CHW (1, H, W)
+    }
+
+  def _read_split(self):
+    dataset = load_dataset(self.path, split=self.split)
+    if (self.split == "test"):
+      return dataset
+
+    splits = dataset.train_test_split(test_size=self.valid_size, seed=42)
+    if self.split == "valid":
+      return splits["test"]
+
+    return splits["train"]
+```
+
+## Data Augmentation
+
+![Augmentation by applying spacial transforms and color space changes](assets/data_argumentation.svg)
+
+## Albumentations {auto-animate=true}
+
+```python
+import albumentations as A
+
+A.Compose([
+])
+```
+
+## Albumentations {auto-animate=true}
+
+```python
+import albumentations as A
+
+A.Compose([
+    A.HorizontalFlip(p=0.5),
+    A.PadIfNeeded(min_height=width, min_width=height),
+    A.RandomResizedCrop(size=(height, width), scale=(0.8, 1.0), p=1),
+])
+```
+
+## Albumentations {auto-animate=true}
+
+```python
+import albumentations as A
+
+A.Compose([
+    A.HorizontalFlip(p=0.5),
+    A.PadIfNeeded(min_height=width, min_width=height),
+    A.RandomResizedCrop(size=(height, width), scale=(0.8, 1.0), p=1),
+    A.OneOf(
+        [
+            A.CLAHE(p=1),
+            A.RandomBrightnessContrast(p=1),
+            A.RandomGamma(p=1),
+        ],
+        p=0.4,
+    ),
+    A.OneOf(
+        [
+            A.Sharpen(p=1),
+            A.Blur(blur_limit=3, p=1),
+            A.MotionBlur(blur_limit=3, p=1),
+        ],
+        p=0.2,
+    ),
+    A.OneOf(
+        [
+            A.RandomBrightnessContrast(p=1),
+            A.HueSaturationValue(p=1),
+        ],
+        p=0.4,
+    ),
+])
+```
+
+## References
+
+::: {#refs}
+:::

@@ -1,0 +1,25 @@
+/*-- scss:defaults --*/
+
+$text-muted: #75787B;
+$link-color: #9D2235;
+
+$font-family-sans-serif: Literata, Georgia, serif;
+
+$presentation-heading-font: Montserrat, Helvetica, Arial, sans-serif;
+
+$font-family-monospace: "JetBrains Mono", "Courier New", Courier, monospace;
+
+$presentation-heading-color: $link-color;
+
+
+$presentation-font-size-root: 38px;
+$presentation-h1-font-size: 2.2em;
+$presentation-h2-font-size: 1.4em;
+$presentation-h3-font-size: 1.2em;
+
+/*-- scss:rules --*/
+
+.reveal .slide-menu-button a {
+    filter: grayscale(100%);
+    opacity: 0.5;
+}
