@@ -4,7 +4,7 @@ import albumentations as A
 def get_train_transform(height: int, width: int):
     train_transform = [
         A.HorizontalFlip(p=0.5),
-        A.PadIfNeeded(min_height=width, min_width=height),
+        A.PadIfNeeded(min_height=height, min_width=width),
         A.RandomResizedCrop(size=(height, width), scale=(0.8, 1.0), p=1),
         A.OneOf(
             [
@@ -36,6 +36,7 @@ def get_train_transform(height: int, width: int):
 def get_valid_transform(height: int, width: int):
     """Add paddings to make image shape divisible by 32"""
     test_transform = [
+        A.PadIfNeeded(min_height=height, min_width=width),
         A.Crop(x_min=0, y_min=0, x_max=width, y_max=height),
     ]
     return A.Compose(test_transform)
