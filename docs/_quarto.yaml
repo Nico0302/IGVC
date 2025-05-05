@@ -41,6 +41,7 @@ format:
   revealjs:
     logo: assets/logo.svg
     footer: "CSCI-581 — Nicolas Gres 2025"
+    code-line-numbers: false
 
 crossref:
   custom:

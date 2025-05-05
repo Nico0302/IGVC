@@ -1,6 +1,6 @@
 ---
 title: "**IGVC** Obstacle Segmentation"
-subtitle: "*Training a model without data*"
+subtitle: "*training a model without data*"
 format: revealjs
 reference-location: document
 reference-links: true
@@ -40,7 +40,8 @@ course fully **autonomously**
 - **Object Detection**
   - Classify each object by \
   bounding boxes
-  - e.g. YOLO^[can also be used for segmentation on combination with detection], Faster R-CNN
+  - e.g. Faster R-CNN, \
+  YOLO (can also be used for segmentation)
 
 - **Semantic Segmentation**
   - Classify each pixel
@@ -62,6 +63,13 @@ course fully **autonomously**
 
 ## 🤗 Hugging Face
 
+- Manages datasets and model files
+    - upload via `HfApi` or `git-lfs`
+
+- [Dataset Viewer](https://huggingface.co/datasets/Nico0302/IGVC-Segmentation/viewer?views%5B%5D=train) to quickly browse through the dataset
+
+- `datasets` library to load datasets with utility functions
+
 ```python
 from huggingface_hub import HfApi
 
@@ -71,13 +79,6 @@ HfApi().upload_folder(
     repo_type="dataset",
 )
 ```
-
-- Manages datasets and model files
-    - upload via `HfApi` or `git-lfs`
-
-- [Dataset Viewer](https://huggingface.co/datasets/Nico0302/IGVC-Segmentation/viewer?views%5B%5D=train) to quickly browse through the dataset
-
-- `datasets` library to load datasets with utility functions
 
 ## Datasets {auto-animate=true}
 
@@ -92,6 +93,8 @@ HfApi().upload_folder(
 
     return splits["train"]
 ```
+
+![Image courtesy of @HML3](assets/evaluation_data.png)
 
 ## Datasets {auto-animate=true}
 
@@ -117,12 +120,33 @@ class SegmentationDataset(Dataset):
     if (self.split == "test"):
       return dataset
 
-    splits = dataset.train_test_split(test_size=self.valid_size, seed=42)
+    splits = dataset.train_test_split(test_size=self.valid_size)
     if self.split == "valid":
       return splits["test"]
 
     return splits["train"]
 ```
+
+## Model **v1**
+
+![**U-Net** [@ronnebergerUNetConvolutionalNetworks2015]](assets/u-net.svg)
+
+::: {.notes}
+
+- each down sampling block consists of 
+  - convolution layer
+  - ReLU activation
+  - max pooling
+- 
+- skip connections concatenate feature maps to double the number of channels
+
+:::
+
+## Model **v1** Results
+
+![](assets/results_unet.png)
+
+![](assets/loss_unet.png){height="300" fig-align="center"}
 
 ## Data Augmentation
 
@@ -133,8 +157,10 @@ class SegmentationDataset(Dataset):
 ```python
 import albumentations as A
 
-A.Compose([
+transform = A.Compose([
 ])
+
+train_dataset = SegmentationDataset(Split.TRAIN, transform=transform)
 ```
 
 ## Albumentations {auto-animate=true}
@@ -142,11 +168,13 @@ A.Compose([
 ```python
 import albumentations as A
 
-A.Compose([
+transform = A.Compose([
     A.HorizontalFlip(p=0.5),
     A.PadIfNeeded(min_height=width, min_width=height),
     A.RandomResizedCrop(size=(height, width), scale=(0.8, 1.0), p=1),
 ])
+
+train_dataset = SegmentationDataset(Split.TRAIN, transform=transform)
 ```
 
 ## Albumentations {auto-animate=true}
@@ -154,7 +182,7 @@ A.Compose([
 ```python
 import albumentations as A
 
-A.Compose([
+transform = A.Compose([
     A.HorizontalFlip(p=0.5),
     A.PadIfNeeded(min_height=width, min_width=height),
     A.RandomResizedCrop(size=(height, width), scale=(0.8, 1.0), p=1),
@@ -182,7 +210,235 @@ A.Compose([
         p=0.4,
     ),
 ])
+
+train_dataset = SegmentationDataset(Split.TRAIN, transform=transform)
 ```
+
+## Albumentations
+
+![transform applied on training batch](assets/img_grid.jpg)
+
+## Transfer Learning
+
+![**ResNet** architecture for object detection (Image courtesy of @HML3)](assets/resnet.png)
+
+::: {.notes}
+- Use ResNet34 as an encode (backbone) for the segmentation model
+- Pre-Trained on ImageNet
+:::
+
+## Feature Pyramid Networks
+
+<br />
+
+![**FPN** masking visualization for segmentation (Adapted from @linFeaturePyramidNetworks2017)](assets/fpn.svg)
+
+## Model **v2**
+
+```python
+import torch
+from torch.optim import lr_scheduler
+import pytorch_lightning as pl
+import segmentation_models_pytorch as smp
+
+class SegmentationModel(pl.LightningModule):
+    def __init__(self, arch, encoder_name, in_channels, out_classes, T_max, **kwargs):
+        super().__init__()
+        self.model = smp.create_model(
+            arch,
+            encoder_name=encoder_name,
+            in_channels=in_channels,
+            classes=out_classes,
+            **kwargs,
+        )
+        self.T_max = T_max
+        # preprocessing parameteres for image
+        params = smp.encoders.get_preprocessing_params(encoder_name)
+        self.register_buffer("std", torch.tensor(params["std"]).view(1, 3, 1, 1))
+        self.register_buffer("mean", torch.tensor(params["mean"]).view(1, 3, 1, 1))
+
+        # for image segmentation dice loss could be the best first choice
+        self.loss_fn = smp.losses.DiceLoss(smp.losses.BINARY_MODE, from_logits=True)
+
+        # initialize step metics
+        self.training_step_outputs = []
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
+
+    def forward(self, image):
+        # normalize image here
+        image = (image - self.mean) / self.std
+        mask = self.model(image)
+        return mask
+
+    def shared_step(self, batch, stage):
+        image = batch["image"]
+
+        # Shape of the image should be (batch_size, num_channels, height, width)
+        # if you work with grayscale images, expand channels dim to have [batch_size, 1, height, width]
+        assert image.ndim == 4
+
+        # Check that image dimensions are divisible by 32,
+        # encoder and decoder connected by `skip connections` and usually encoder have 5 stages of
+        # downsampling by factor 2 (2 ^ 5 = 32); e.g. if we have image with shape 65x65 we will have
+        # following shapes of features in encoder and decoder: 84, 42, 21, 10, 5 -> 5, 10, 20, 40, 80
+        # and we will get an error trying to concat these features
+        h, w = image.shape[2:]
+        assert h % 32 == 0 and w % 32 == 0, f"Image shape should be divisible by 32, but got {h}x{w}"
+
+        mask = batch["mask"]
+        assert mask.ndim == 4
+
+        # Check that mask values in between 0 and 1, NOT 0 and 255 for binary segmentation
+        assert mask.max() <= 1.0 and mask.min() >= 0, f"Mask values should be in between 0 and 1, but got {mask.min()} and {mask.max()}"
+
+        logits_mask = self.forward(image)
+
+        # Predicted mask contains logits, and loss_fn param `from_logits` is set to True
+        loss = self.loss_fn(logits_mask, mask)
+
+        # Lets compute metrics for some threshold
+        # first convert mask values to probabilities, then
+        # apply thresholding
+        prob_mask = logits_mask.sigmoid()
+        pred_mask = (prob_mask > 0.5).float()
+
+        # We will compute IoU metric by two ways
+        #   1. dataset-wise
+        #   2. image-wise
+        # but for now we just compute true positive, false positive, false negative and
+        # true negative 'pixels' for each image and class
+        # these values will be aggregated in the end of an epoch
+        tp, fp, fn, tn = smp.metrics.get_stats(
+            pred_mask.long(), mask.long(), mode="binary"
+        )
+        return {
+            "loss": loss,
+            "tp": tp,
+            "fp": fp,
+            "fn": fn,
+            "tn": tn,
+        }
+
+    def shared_epoch_end(self, outputs, stage):
+        # aggregate step metics
+        tp = torch.cat([x["tp"] for x in outputs])
+        fp = torch.cat([x["fp"] for x in outputs])
+        fn = torch.cat([x["fn"] for x in outputs])
+        tn = torch.cat([x["tn"] for x in outputs])
+
+        # per image IoU means that we first calculate IoU score for each image
+        # and then compute mean over these scores
+        per_image_iou = smp.metrics.iou_score(
+            tp, fp, fn, tn, reduction="micro-imagewise"
+        )
+
+        # dataset IoU means that we aggregate intersection and union over whole dataset
+        # and then compute IoU score. The difference between dataset_iou and per_image_iou scores
+        # in this particular case will not be much, however for dataset
+        # with "empty" images (images without target class) a large gap could be observed.
+        # Empty images influence a lot on per_image_iou and much less on dataset_iou.
+        dataset_iou = smp.metrics.iou_score(tp, fp, fn, tn, reduction="micro")
+        metrics = {
+            f"{stage}_per_image_iou": per_image_iou,
+            f"{stage}_dataset_iou": dataset_iou,
+        }
+
+        self.log_dict(metrics, prog_bar=True)
+
+    def training_step(self, batch, batch_idx):
+        train_loss_info = self.shared_step(batch, "train")
+        # append the metics of each step to the
+        self.training_step_outputs.append(train_loss_info)
+        return train_loss_info
+
+    def on_train_epoch_end(self):
+        self.shared_epoch_end(self.training_step_outputs, "train")
+        # empty set output list
+        self.training_step_outputs.clear()
+        return
+
+    def validation_step(self, batch, batch_idx):
+        valid_loss_info = self.shared_step(batch, "valid")
+        self.validation_step_outputs.append(valid_loss_info)
+        return valid_loss_info
+
+    def on_validation_epoch_end(self):
+        self.shared_epoch_end(self.validation_step_outputs, "valid")
+        self.validation_step_outputs.clear()
+        return
+
+    def test_step(self, batch, batch_idx):
+        test_loss_info = self.shared_step(batch, "test")
+        self.test_step_outputs.append(test_loss_info)
+        return test_loss_info
+
+    def on_test_epoch_end(self):
+        self.shared_epoch_end(self.test_step_outputs, "test")
+        # empty set output list
+        self.test_step_outputs.clear()
+        return
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=2e-4)
+        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.T_max, eta_min=1e-5)
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "step",
+                "frequency": 1,
+            },
+        }
+        return
+    
+    def load_pretrained(self, path: str):
+        """Load model weights from a checkpoint file."""
+        self.model = smp.from_pretrained(path)
+```
+
+## Model **v2** Results
+
+![](assets/results_final_sim.png){fig-align="center"}
+
+![](assets/results_final.png){fig-align="center"}
+
+
+## Model **v2** Results
+
+![(might be too optimistic, since the test set contains simulated data)](assets/cm.svg)
+
+## Enhancements
+
+- Experiment with **smaller encoders**
+  - e.g. EfficientNet, MobileNet
+- Expand test test set with **manually labeled** data
+- Save the model and transforms to 🤗 **Hugging Face**
+- Export the model to **ONNX**
+
+## Key Takeaways
+
+::: {.incremental}
+1. **Curated dataset** with training, validation and test splits
+    - e.g. HF datasets library
+2. **Data augmentation** to increase the size of the data set
+    - e.g. Albumentations
+3. **Transfer learning** with pre-trained models
+    - e.g. ResNet34
+:::
+
+<br />
+
+::: {#title-slide .center}
+::: {.fragment}
+### Thank you for your attention! 
+:::
+
+::: {.fragment}
+#### Questions?
+:::
+:::
+
 
 ## References
 
