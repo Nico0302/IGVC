@@ -413,6 +413,7 @@ class SegmentationModel(pl.LightningModule):
 - Experiment with **smaller encoders**
   - e.g. EfficientNet, MobileNet
 - Expand test test set with **manually labeled** data
+- Use **Nvidia Cosmos Transfer** to generate training data
 - Save the model and transforms to 🤗 **Hugging Face**
 - Export the model to **ONNX**
 
@@ -420,7 +421,7 @@ class SegmentationModel(pl.LightningModule):
 
 ::: {.incremental}
 1. **Curated dataset** with training, validation and test splits
-    - e.g. HF datasets library
+    - e.g. HF datasets, roboflow
 2. **Data augmentation** to increase the size of the data set
     - e.g. Albumentations
 3. **Transfer learning** with pre-trained models

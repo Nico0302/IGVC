@@ -4,6 +4,9 @@ _dataset/
 
 lightning_logs/
 
+*_files/
+*.html
+
 .env
 
 .DS_Store
